@@ -14,9 +14,6 @@ def calculate_theta2_rad(sigma_cm_inv, theta1_rad, n1_func):
     return np.arcsin(sin_theta2)
 
 
-# --- 2. 主计算函数 ---
-
-
 def calculate_thickness(file_path, theta1_deg):
     print(f"--- 正在处理文件 (复数模型): {file_path} (入射角: {theta1_deg}°) ---")
     df = pd.read_excel(file_path)
@@ -55,6 +52,11 @@ def calculate_thickness(file_path, theta1_deg):
     x_data = sigma_extrema * x_factor
     y_data = k_relative
 
+    # x_threshold = 3500 
+    # reliable_data_mask = (x_data > x_threshold)
+    # x_data = x_data[reliable_data_mask]
+    # y_data = y_data[reliable_data_mask]
+    # print(f"用于线性拟合的有效数据点数量: {len(x_data)} (x > {x_threshold})")
     # --- 线性回归 ---
     # 根据新模型 k = (4d) * x, 斜率 slope = 4d
     lin_result = linregress(x_data, y_data)
@@ -78,7 +80,7 @@ def calculate_thickness(file_path, theta1_deg):
         color="red",
         label="Detected Extrema",
     )
-    plt.title(f"Spectrum and Extrema")
+    plt.title(f"Spectrum and Extrema degree={theta1_deg}°")
     plt.xlabel("Wavenumber (cm⁻¹)")
     plt.ylabel("Reflectance (%)")
     plt.legend()
@@ -95,7 +97,7 @@ def calculate_thickness(file_path, theta1_deg):
     )
     plt.title("Modified Linear Fit of Interference Order")
     # The x-label formula uses standard mathematical notation, which is universal.
-    plt.xlabel(" · Real(sqrt(ñ₁² - sin²(θ₁)))  (cm⁻¹)")
+    plt.xlabel("σ · Real(sqrt(ñ₁² - sin²(θ₁)))  (cm⁻¹)")
     plt.ylabel("Relative Interference Order k")
     plt.legend()
     plt.grid(True)
@@ -109,3 +111,5 @@ if __name__ == "__main__":
     # 假设附件1和附件2在代码运行的目录下
     calculate_thickness("附件1.xlsx", 10)
     calculate_thickness("附件2.xlsx", 15)
+    
+

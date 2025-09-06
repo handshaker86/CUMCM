@@ -193,7 +193,6 @@ if __name__ == "__main__":
     final_d = (d10_final + d15_final)/2.0
     final_params_low = (params_low10_final + params_low15_final)/2.0
     print(f"最终厚度 d = {final_d:.4f} μm")
-    import pdb; pdb.set_trace()
     print(f"低频参数 = {np.array2string(final_params_low, precision=3)}")
 
     # 可视化拟合

@@ -2,12 +2,10 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize, minimize_scalar
 import matplotlib.pyplot as plt
-from preprocess import preprocess_data
+from q1_method2 import preprocess_data
 from scipy.ndimage import uniform_filter1d
 
-# (这是一个辅助函数，仅用于 substrate_refractive_index)
-def get_silicon_refractive_index_sellmeier(wavenumbers_cm):
-    """使用文献公认的Sellmeier方程计算高纯度硅(Si)的本征折射率。"""
+def get_silicon_refractive_index(wavenumbers_cm):
     lambda_um = 10000.0 / (wavenumbers_cm + 1e-9)
     lambda_sq = lambda_um**2
     n_sq = (
@@ -16,7 +14,6 @@ def get_silicon_refractive_index_sellmeier(wavenumbers_cm):
         - 0.0044155 * lambda_sq
     )
     return np.sqrt(n_sq)
-
 
 def get_si_refractive_index_LD(wavenumbers_cm, params):
     eps_inf, sig_TO, sig_LO, gamma_phonon, sig_p, gamma_e = params
@@ -32,17 +29,15 @@ def get_si_refractive_index_LD(wavenumbers_cm, params):
     epsilon = lorentz_term - drude_term
     return np.sqrt(epsilon + 1e-12j)
 
-
 def get_si_refractive_index_high(sigma, params_low, drude_scale=0.0):
     eps_inf, sig_TO, sig_LO, gamma_ph, sig_p, gamma_e = params_low
     return get_si_refractive_index_LD(
         sigma, [eps_inf, sig_TO, sig_LO, gamma_ph, sig_p * drude_scale, gamma_e]
     )
 
-
 def get_si_substrate_n(sigma):
     fixed_drude = [1000.0, 500.0]
-    n_sell = get_silicon_refractive_index_sellmeier(sigma)
+    n_sell = get_silicon_refractive_index(sigma)
     eps_sell = n_sell**2
     sigma_safe = sigma + 1e-9
     drude_term = (fixed_drude[0] ** 2) / (
@@ -50,10 +45,6 @@ def get_si_substrate_n(sigma):
     )
     return np.sqrt(eps_sell - drude_term + 1e-12j)
 
-
-# -----------------------------
-# 2) 余弦平滑权重
-# -----------------------------
 def cosine_blend_weights(x, x0, half_width):
     w = np.zeros_like(x, dtype=float)
     left = x0 - half_width
@@ -68,25 +59,13 @@ def cosine_blend_weights(x, x0, half_width):
         w[mask_tr] = 0.5 * (1 - np.cos(np.pi * t))
     return w
 
-
-# -----------------------------
-# 3) 高频平滑加权
-# -----------------------------
 def highfreq_weight(sigma, split=1500, tw=120, highweight=5.0):
     w_low = cosine_blend_weights(sigma, split, tw)
     return 1.0 + (highweight - 1.0) * (1 - w_low)
 
-
-# -----------------------------
-# 4) 残差平滑
-# -----------------------------
 def smooth_residual(residual, window=3):
     return uniform_filter1d(residual, size=window)
 
-
-# -----------------------------
-# 5) 薄膜反射率（混合模型）
-# -----------------------------
 def calculate_reflectance_hybrid(
     d_um, params_low, sigma, theta_deg, split=1500.0, tw=120.0, drude_scale_high=0.0
 ):
@@ -117,10 +96,6 @@ def calculate_reflectance_hybrid(
 
     return (np.abs(r_s) ** 2 + np.abs(r_p) ** 2) / 2.0
 
-
-# -----------------------------
-# 6) Step 1: 高频拟合厚度 d
-# -----------------------------
 def fit_thickness_high(sigma, R_exp, theta_deg, split=1500.0, tw=120.0):
     sigma_high = sigma[sigma >= split]
     R_high = R_exp[sigma >= split]
@@ -157,10 +132,6 @@ def refine_highfreq_thickness(
     res = minimize_scalar(obj, bounds=(d_init - 0.5, d_init + 0.5), method="bounded")
     return res.x
 
-
-# -----------------------------
-# 7) Step 2: 低频拟合 LD 参数
-# -----------------------------
 def fit_lowfreq_params(sigma, R_exp, theta_deg, d_fixed, split=1500.0, tw=120.0):
     def obj_low(params):
         R_model = calculate_reflectance_hybrid(
@@ -182,10 +153,6 @@ def fit_lowfreq_params(sigma, R_exp, theta_deg, d_fixed, split=1500.0, tw=120.0)
     res = minimize(obj_low, initial, bounds=bounds, method="L-BFGS-B")
     return res.x
 
-
-# -----------------------------
-# 8) Step 3: 全波段微调 + 高频加权
-# -----------------------------
 def fit_full_hybrid(
     sigma,
     R_exp,
@@ -219,10 +186,6 @@ def fit_full_hybrid(
     res = minimize(obj_full, initial, bounds=bounds, method="L-BFGS-B")
     return res.x
 
-
-# -----------------------------
-# 9) 主流程
-# -----------------------------
 if __name__ == "__main__":
     file1 = "附件3.xlsx"
     file2 = "附件4.xlsx"
@@ -260,8 +223,6 @@ if __name__ == "__main__":
     print(f"最终厚度 d = {final_d:.4f} μm")
     print(f"低频参数 = {np.array2string(final_params_low, precision=3)}")
 
-    # 可视化拟合
-    # 绘制反射率拟合曲线，并在 label 中显示厚度 d
     for wn, R_exp, angle, label, color, d in [
         (wn1, R1, 10, "10°", "red", d10_final),
         (wn2, R2, 15, "15°", "green", d15_final),
@@ -287,35 +248,3 @@ if __name__ == "__main__":
         plt.legend()
         plt.grid(True)
         plt.show()
-
-    # 绘制 n/k 光学常数，并在 label 中显示厚度 d
-    sigma_plot = np.linspace(400, 4000, 1000)
-    N_complex = get_si_refractive_index_LD(sigma_plot, final_params_low)
-    n_fit = N_complex.real
-    k_fit = N_complex.imag
-
-    fig, ax1 = plt.subplots(figsize=(12, 6))
-    ax1.plot(sigma_plot, n_fit, color="blue", label=f"n (d={final_d:.3f} μm)")
-    ax1.set_xlabel("Wavenumber (cm⁻¹)")
-    ax1.set_ylabel("Refractive Index (n)", color="blue")
-    ax1.tick_params(axis="y", labelcolor="blue")
-    ax1.grid(True, linestyle="--")
-
-    ax2 = ax1.twinx()
-    ax2.plot(
-        sigma_plot,
-        k_fit,
-        color="green",
-        linestyle="--",
-        label=f"k (d={final_d:.3f} μm)",
-    )
-    ax2.set_ylabel("Extinction Coefficient (k)", color="green")
-    ax2.tick_params(axis="y", labelcolor="green")
-
-    lines1, labels1 = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc="best")
-
-    plt.title("Final Optical Constants (n & k) of Si Film")
-    plt.tight_layout()
-    plt.show()

@@ -2,11 +2,45 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize, minimize_scalar
 import matplotlib.pyplot as plt
-from preprocess import preprocess_data
+from scipy.signal import savgol_filter
 
+MIN_WAVENUMBER = 600
+MAX_WAVENUMBER = 4000
+SG_WINDOW = 11
+SG_ORDER = 2
+NORMALIZATION_RANGE = (500, 1000)
+
+def preprocess_data(
+    data_df,
+    min_wn=MIN_WAVENUMBER,
+    max_wn=MAX_WAVENUMBER,
+    sg_window=SG_WINDOW,
+    sg_order=SG_ORDER,
+    norm_range=NORMALIZATION_RANGE,
+):
+    df = data_df.copy()
+    df.columns = ["wavenumber", "reflectance"]
+    reststrahlen_band = df[
+        (df["wavenumber"] >= norm_range[0]) & (df["wavenumber"] <= norm_range[1])
+    ]
+    max_R_exp = reststrahlen_band["reflectance"].max()
+
+    if max_R_exp > 100.0:
+        correction_factor = 100.0 / max_R_exp
+        print(f"  检测到最大反射率为 {max_R_exp:.2f}% (>100%)。")
+        df["reflectance_norm"] = df["reflectance"] * correction_factor
+    else:
+        print("  最大反射率未超过100%，无需归一化。")
+        df["reflectance_norm"] = df["reflectance"]
+
+    df_cut = df[(df["wavenumber"] >= min_wn) & (df["wavenumber"] <= max_wn)].copy()
+    df_cut["reflectance_processed"] = savgol_filter(
+        df_cut["reflectance_norm"], window_length=sg_window, polyorder=sg_order
+    )
+    final_df = df_cut[["wavenumber", "reflectance_processed"]].reset_index(drop=True)
+    return final_df
 
 def get_sic_refractive_index_LD(wavenumbers_cm, params):
-    """根据洛伦兹-德鲁德模型的6个参数，计算复折射率。"""
     eps_inf, sig_TO, sig_LO, gamma_phonon, sig_p, gamma_e = params
     sigma = np.asarray(wavenumbers_cm)
     i = 1j
@@ -21,21 +55,16 @@ def get_sic_refractive_index_LD(wavenumbers_cm, params):
     n_complex = np.sqrt(epsilon + 1e-12j)
     return n_complex
 
-
 def get_sic_refractive_index_substrate(wavenumbers_cm):
-    """使用一组固定的、代表重掺杂SiC衬底的参数，计算衬底的复折射率。"""
     fixed_substrate_params = [6.5, 797.7, 992.1, 8.0, 600, 300]
     return get_sic_refractive_index_LD(wavenumbers_cm, fixed_substrate_params)
-
 
 def calculate_reflectance_thin_film(
     fit_params, wavenumbers_cm, theta0_deg, is_multibeam=False
 ):
-    """根据薄膜干涉模型计算理论反射率。"""
     d_um = fit_params[0]
     material_params = fit_params[1:]
     N1 = get_sic_refractive_index_LD(wavenumbers_cm, material_params)
-    substrate_params = material_params[:4]
     N2 = get_sic_refractive_index_substrate(wavenumbers_cm)
     N0 = 1.0
     d_cm = d_um * 1e-4
@@ -72,11 +101,7 @@ def calculate_reflectance_thin_film(
     R_model = (R_s + R_p) / 2
     return np.real(R_model)
 
-
 def fit_optical_params(exp_wavenumbers, exp_reflectance, angle_deg, fixed_d):
-    """步骤一：固定厚度d，拟合6个光学参数。"""
-    print(f"\n--- 步骤一：处理角度 {angle_deg}° 数据 (固定 d={fixed_d} μm) ---")
-
     def objective_for_params(
         material_params, wavenumbers_cm, R_exp, theta0_deg, fixed_d_um
     ):
@@ -96,7 +121,7 @@ def fit_optical_params(exp_wavenumbers, exp_reflectance, angle_deg, fixed_d):
         args=(exp_wavenumbers, exp_reflectance, angle_deg, fixed_d),
         method="L-BFGS-B",
         bounds=bounds_material,
-        options={"disp": False},  # 显示详细迭代过程
+        options={"disp": False},  
     )
     if result.success:
         print("光学参数拟合成功。")
@@ -106,11 +131,7 @@ def fit_optical_params(exp_wavenumbers, exp_reflectance, angle_deg, fixed_d):
         print("警告: 光学参数拟合未能收敛。")
         return None
 
-
 def fit_thickness(exp_wavenumbers, exp_reflectance, angle_deg, fixed_material_params):
-    """步骤三：固定光学参数，拟合厚度d。"""
-    print(f"\n--- 步骤三：处理角度 {angle_deg}° 数据 (固定光学常数) ---")
-
     def objective_for_d(d_um, wavenumbers_cm, R_exp, theta0_deg, fixed_params):
         fit_params = np.insert(fixed_params, 0, d_um)
         R_model = calculate_reflectance_thin_film(
@@ -129,8 +150,6 @@ def fit_thickness(exp_wavenumbers, exp_reflectance, angle_deg, fixed_material_pa
     print(f"厚度拟合完成，d = {result.x:.4f} μm")
     return result.x
 
-
-# --- 3. 主程序 ---
 if __name__ == "__main__":
     file1 = "附件1.xlsx"
     file2 = "附件2.xlsx"
@@ -146,20 +165,13 @@ if __name__ == "__main__":
     wavenumbers2 = processed_df2.iloc[:, 0].values.astype(float)
     reflectance2 = processed_df2.iloc[:, 1].values.astype(float)
 
-    # --- 执行分步拟合流程 ---
-
-    # 步骤一：固定一个猜测的厚度，例如 9.0 μm
     fixed_d_guess = 9
     params_10deg = fit_optical_params(wavenumbers1, reflectance1, 10, fixed_d_guess)
     params_15deg = fit_optical_params(wavenumbers2, reflectance2, 15, fixed_d_guess)
 
     if params_10deg is not None and params_15deg is not None:
-        # 步骤二：比较并平均光学常数
-        print("\n" + "=" * 40)
-        print("--- 步骤二：比较并平均光学常数 ---")
         param_names = ["eps_inf", "sig_TO", "sig_LO", "gamma_ph", "sig_p", "gamma_e"]
         print(f"{'参数':<10} | {'10度拟合值':<15} | {'15度拟合值':<15}")
-        print("-" * 45)
         for i, name in enumerate(param_names):
             print(f"{name:<10} | {params_10deg[i]:<15.3f} | {params_15deg[i]:<15.3f}")
 
@@ -169,26 +181,22 @@ if __name__ == "__main__":
             print(f"  {name:<10} = {param:.4f}")
         print("=" * 40)
 
-        # 步骤三：使用平均光学常数，重新精确拟合厚度
         final_d_10deg = fit_thickness(wavenumbers1, reflectance1, 10, avg_params)
         final_d_15deg = fit_thickness(wavenumbers2, reflectance2, 15, avg_params)
 
-        # --- 最终分析与可视化 ---
         final_d = np.mean([final_d_10deg, final_d_15deg])
         print("\n" + "=" * 40)
         print("--- 最终分析结果 ---")
         print(f"基于10°数据计算的最终厚度: {final_d_10deg:.4f} μm")
         print(f"基于15°数据计算的最终厚度: {final_d_15deg:.4f} μm")
         print(f"平均厚度 (最终结果): d = {final_d:.4f} μm")
-        print("=" * 40)
 
-        # 可视化最终结果
         final_fit_params = np.insert(avg_params, 0, final_d)
-
-        # 绘制10度拟合图
         R_fit1 = (
             calculate_reflectance_thin_film(final_fit_params, wavenumbers1, 10) * 100
         )
+
+        # 绘制10度拟合图
         plt.figure(figsize=(12, 6))
         plt.plot(wavenumbers1, reflectance1, label="Experiment Data (10°)", alpha=0.7)
         plt.plot(
@@ -223,29 +231,4 @@ if __name__ == "__main__":
         plt.ylabel("Reflectance (%)")
         plt.legend()
         plt.grid(True)
-        plt.show()
-
-        # 绘制最终的折射率谱
-        sigma_plot = np.linspace(400, 4000, 1000)
-        n_complex_fit = get_sic_refractive_index_LD(sigma_plot, avg_params)
-        n_fit = n_complex_fit.real
-        k_fit = n_complex_fit.imag
-        fig, ax1 = plt.subplots(figsize=(12, 6))
-        ax1.set_xlabel("Wavenumber (cm$^{-1}$)")
-        ax1.set_ylabel("Refractive Index (n)", color="blue")
-        ax1.plot(sigma_plot, n_fit, color="blue", label="n (Refractive Index)")
-        ax1.tick_params(axis="y", labelcolor="blue")
-        ax1.grid(True, linestyle="--")
-        ax2 = ax1.twinx()
-        ax2.set_ylabel("Extinction Coefficient (k)", color="green")
-        ax2.plot(
-            sigma_plot,
-            k_fit,
-            color="green",
-            linestyle="--",
-            label="k (Extinction Coeff.)",
-        )
-        ax2.tick_params(axis="y", labelcolor="green")
-        plt.title("Final Calculated Optical Constants (n & k) of the 4H-SiC Film")
-        fig.tight_layout()
         plt.show()

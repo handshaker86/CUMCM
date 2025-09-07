@@ -3,21 +3,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 from scipy.stats import linregress
-from q1_method2 import get_sic_refractive_index_LD, fit_optical_params
-from preprocess import preprocess_data
-
+from q1_method2 import get_sic_refractive_index_LD, fit_optical_params, preprocess_data
 
 def calculate_theta2_rad(sigma_cm_inv, theta1_rad, n1_func):
-    """根据斯涅尔定律计算折射角 theta2 (弧度)"""
     n0 = 1.0  # 空气折射率
     n1 = n1_func(sigma_cm_inv)
     sin_theta2 = (n0 / n1) * np.sin(theta1_rad)
     return np.arcsin(sin_theta2)
 
-
 def calculate_thickness(sigma, reflectance, theta1_deg, params):
-
-    # 寻峰逻辑不变
     peak_indices, _ = find_peaks(reflectance, prominence=0.1)
     valley_indices, _ = find_peaks(-reflectance, prominence=0.1)
     extrema_indices = np.sort(np.concatenate([peak_indices, valley_indices]))
@@ -25,41 +19,23 @@ def calculate_thickness(sigma, reflectance, theta1_deg, params):
 
     sigma_extrema = sigma[extrema_indices]
     print(f"在有效折射率范围内找到 {len(sigma_extrema)} 个极值点。")
-
-    # 相对干涉级次 k 不变
     k_relative = np.arange(len(sigma_extrema))
-
-    # --- 修正的线性模型计算 ---
     theta1_rad = np.deg2rad(theta1_deg)
     sin_sq_theta1 = np.sin(theta1_rad) ** 2
-
-    # 1. 获取每个极值点波数对应的【复数】折射率 ñ₁
     n1_complex = get_sic_refractive_index_LD(sigma_extrema, params)
-
-    # 2. 计算 ñ_eff = sqrt(ñ₁² - sin²(θ₁))
     n_eff_complex = np.sqrt(n1_complex**2 - sin_sq_theta1)
-
-    # 3. 提取 ñ_eff 的实部作为 x 轴的乘数因子
     x_factor = n_eff_complex.real
-
-    # 4. 构建线性拟合的 x 和 y 轴数据
-    # x = σ * Real(ñ_eff)
     x_data = sigma_extrema * x_factor
     y_data = k_relative
     filter_mask_k = (y_data > 5) 
     x_data = x_data[filter_mask_k]
     y_data = y_data[filter_mask_k]
 
-    # --- 线性回归 ---
-    # 根据新模型 k = (4d) * x, 斜率 slope = 4d
     lin_result = linregress(x_data, y_data)
     slope = lin_result.slope
-
-    # --- 计算厚度 d ---
     d_cm = slope / 4.0
     d_um = d_cm * 1e4
 
-    # --- 结果输出与可视化 ---
     print(f"线性拟合斜率 (Slope): {slope:.6f}")
     print(f"线性拟合 R-squared: {lin_result.rvalue**2:.6f}")
     print(f"计算得到的外延层厚度 d = {d_um:.4f} μm\n")
@@ -79,7 +55,6 @@ def calculate_thickness(sigma, reflectance, theta1_deg, params):
     plt.legend()
     plt.grid(True)
 
-    # Plot 2: Modified linear fit result
     plt.subplot(1, 2, 2)
     plt.scatter(x_data, y_data, label="Extrema Data Points")
     plt.plot(
@@ -89,7 +64,6 @@ def calculate_thickness(sigma, reflectance, theta1_deg, params):
         label=f"Linear Fit (d={d_um:.3f} μm)\nR²={lin_result.rvalue**2:.3f}",
     )
     plt.title("Modified Linear Fit of Interference Order")
-    # The x-label formula uses standard mathematical notation, which is universal.
     plt.xlabel("σ · Real(sqrt(ñ₁² - sin²(θ₁)))  (cm⁻¹)")
     plt.ylabel("Relative Interference Order k")
     plt.legend()
@@ -98,19 +72,17 @@ def calculate_thickness(sigma, reflectance, theta1_deg, params):
     plt.tight_layout()
     plt.show()
 
-
 if __name__ == "__main__":
-
     df1 = pd.read_excel("附件1.xlsx")
     df1 = preprocess_data(df1)
     sigma1 = df1.iloc[:, 0].values
     reflectance1 = df1.iloc[:, 1].values
-    params1 = fit_optical_params(sigma1, reflectance1, 10, 8)  # 获取拟合的光学参数
+    params1 = fit_optical_params(sigma1, reflectance1, 10, 8)  
     calculate_thickness(sigma1, reflectance1, 10, params1)
 
     df2 = pd.read_excel("附件2.xlsx")
     df2 = preprocess_data(df2)
     sigma2 = df2.iloc[:, 0].values
     reflectance2 = df2.iloc[:, 1].values
-    params2 = fit_optical_params(sigma2, reflectance2, 15, 8)  # 获取拟合的光学参数
+    params2 = fit_optical_params(sigma2, reflectance2, 15, 8)  
     calculate_thickness(sigma2, reflectance2, 15, params2)

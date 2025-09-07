@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize, minimize_scalar
 import matplotlib.pyplot as plt
-from q1_method2 import preprocess_data
+from q2_method2 import preprocess_data
 from scipy.ndimage import uniform_filter1d
 
 def get_silicon_refractive_index(wavenumbers_cm):

@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
-from q1_method2 import get_sic_refractive_index_LD, get_sic_refractive_index_substrate
+from q2_method2 import get_sic_refractive_index_LD, get_sic_refractive_index_substrate
 
 LANG = "en"   
 THRESHOLD = 0.10          

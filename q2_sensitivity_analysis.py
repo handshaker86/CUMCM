@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize, minimize_scalar
 import matplotlib.pyplot as plt
-from q1_method2 import preprocess_data
-from q1_method2 import calculate_reflectance_thin_film
+from q2_method2 import preprocess_data
+from q2_method2 import calculate_reflectance_thin_film
 
 # 配置
 BANDS = [

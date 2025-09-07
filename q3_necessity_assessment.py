@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from q1_method2 import preprocess_data  
+from q2_method2 import preprocess_data  
 import matplotlib
 
 # --- 用户配置区 ---

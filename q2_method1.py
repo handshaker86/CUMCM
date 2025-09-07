@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 from scipy.stats import linregress
-from q1_method2 import get_sic_refractive_index_LD, fit_optical_params, preprocess_data
+from q2_method2 import get_sic_refractive_index_LD, fit_optical_params, preprocess_data
 
 def calculate_theta2_rad(sigma_cm_inv, theta1_rad, n1_func):
     n0 = 1.0  # 空气折射率

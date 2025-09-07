@@ -3,7 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 from scipy.stats import linregress
-from q1_method2 import get_sic_refractive_index
+from q1_method2 import get_sic_refractive_index_LD, fit_optical_params
+from preprocess import preprocess_data
 
 
 def calculate_theta2_rad(sigma_cm_inv, theta1_rad, n1_func):
@@ -14,11 +15,7 @@ def calculate_theta2_rad(sigma_cm_inv, theta1_rad, n1_func):
     return np.arcsin(sin_theta2)
 
 
-def calculate_thickness(file_path, theta1_deg):
-    print(f"--- 正在处理文件 (复数模型): {file_path} (入射角: {theta1_deg}°) ---")
-    df = pd.read_excel(file_path)
-    sigma = df.iloc[:, 0].values
-    reflectance = df.iloc[:, 1].values
+def calculate_thickness(sigma, reflectance, theta1_deg, params):
 
     # 寻峰逻辑不变
     peak_indices, _ = find_peaks(reflectance, prominence=0.1)
@@ -26,8 +23,6 @@ def calculate_thickness(file_path, theta1_deg):
     extrema_indices = np.sort(np.concatenate([peak_indices, valley_indices]))
     sigma_extrema = sigma[extrema_indices]
 
-    valid_range_mask = (sigma_extrema >= 390) & (sigma_extrema <= 4100)
-    extrema_indices = extrema_indices[valid_range_mask]
     sigma_extrema = sigma[extrema_indices]
     print(f"在有效折射率范围内找到 {len(sigma_extrema)} 个极值点。")
 
@@ -39,7 +34,7 @@ def calculate_thickness(file_path, theta1_deg):
     sin_sq_theta1 = np.sin(theta1_rad) ** 2
 
     # 1. 获取每个极值点波数对应的【复数】折射率 ñ₁
-    n1_complex = get_sic_refractive_index(sigma_extrema)
+    n1_complex = get_sic_refractive_index_LD(sigma_extrema, params)
 
     # 2. 计算 ñ_eff = sqrt(ñ₁² - sin²(θ₁))
     n_eff_complex = np.sqrt(n1_complex**2 - sin_sq_theta1)
@@ -51,12 +46,10 @@ def calculate_thickness(file_path, theta1_deg):
     # x = σ * Real(ñ_eff)
     x_data = sigma_extrema * x_factor
     y_data = k_relative
+    filter_mask_k = (y_data > 5) 
+    x_data = x_data[filter_mask_k]
+    y_data = y_data[filter_mask_k]
 
-    # x_threshold = 3500 
-    # reliable_data_mask = (x_data > x_threshold)
-    # x_data = x_data[reliable_data_mask]
-    # y_data = y_data[reliable_data_mask]
-    # print(f"用于线性拟合的有效数据点数量: {len(x_data)} (x > {x_threshold})")
     # --- 线性回归 ---
     # 根据新模型 k = (4d) * x, 斜率 slope = 4d
     lin_result = linregress(x_data, y_data)
@@ -93,7 +86,7 @@ def calculate_thickness(file_path, theta1_deg):
         x_data,
         lin_result.intercept + slope * x_data,
         "r",
-        label=f"Linear Fit\nR²={lin_result.rvalue**2:.5f}",
+        label=f"Linear Fit (d={d_um:.3f} μm)\nR²={lin_result.rvalue**2:.3f}",
     )
     plt.title("Modified Linear Fit of Interference Order")
     # The x-label formula uses standard mathematical notation, which is universal.
@@ -107,9 +100,17 @@ def calculate_thickness(file_path, theta1_deg):
 
 
 if __name__ == "__main__":
-    # --- 执行计算 ---
-    # 假设附件1和附件2在代码运行的目录下
-    calculate_thickness("附件1.xlsx", 10)
-    calculate_thickness("附件2.xlsx", 15)
-    
 
+    df1 = pd.read_excel("附件1.xlsx")
+    df1 = preprocess_data(df1)
+    sigma1 = df1.iloc[:, 0].values
+    reflectance1 = df1.iloc[:, 1].values
+    params1 = fit_optical_params(sigma1, reflectance1, 10, 8)  # 获取拟合的光学参数
+    calculate_thickness(sigma1, reflectance1, 10, params1)
+
+    df2 = pd.read_excel("附件2.xlsx")
+    df2 = preprocess_data(df2)
+    sigma2 = df2.iloc[:, 0].values
+    reflectance2 = df2.iloc[:, 1].values
+    params2 = fit_optical_params(sigma2, reflectance2, 15, 8)  # 获取拟合的光学参数
+    calculate_thickness(sigma2, reflectance2, 15, params2)

@@ -40,7 +40,7 @@ def get_si_refractive_index_high(sigma, params_low, drude_scale=0.0):
     )
 
 
-def get_sic_substrate_n(sigma):
+def get_si_substrate_n(sigma):
     fixed_drude = [1000.0, 500.0]
     n_sell = get_silicon_refractive_index_sellmeier(sigma)
     eps_sell = n_sell**2
@@ -98,7 +98,7 @@ def calculate_reflectance_hybrid(
     N_high = get_si_refractive_index_high(sigma, params_low, drude_scale_high)
     w_low = cosine_blend_weights(sigma, split, tw)
     N1 = w_low * N_low + (1 - w_low) * N_high
-    N2 = get_sic_substrate_n(sigma)
+    N2 = get_si_substrate_n(sigma)
     N0 = 1.0
 
     sin1 = N0 * np.sin(theta_rad) / N1

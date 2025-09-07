@@ -100,6 +100,7 @@ def fit_optical_params(exp_wavenumbers, exp_reflectance, angle_deg, fixed_d):
     )
     if result.success:
         print("光学参数拟合成功。")
+        print(f"最终 MSE Loss: {result.fun:.6f}")
         return result.x
     else:
         print("警告: 光学参数拟合未能收敛。")
@@ -124,6 +125,7 @@ def fit_thickness(exp_wavenumbers, exp_reflectance, angle_deg, fixed_material_pa
         args=(exp_wavenumbers, exp_reflectance, angle_deg, fixed_material_params),
         method="bounded",
     )
+    print(f"最终 MSE Loss: {result.fun:.6f}")
     print(f"厚度拟合完成，d = {result.x:.4f} μm")
     return result.x
 

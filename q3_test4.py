@@ -33,7 +33,7 @@ def get_si_refractive_index_LD(wavenumbers_cm, params):
     return np.sqrt(epsilon + 1e-12j)
 
 
-def get_sic_refractive_index_high(sigma, params_low, drude_scale=0.0):
+def get_si_refractive_index_high(sigma, params_low, drude_scale=0.0):
     eps_inf, sig_TO, sig_LO, gamma_ph, sig_p, gamma_e = params_low
     return get_si_refractive_index_LD(
         sigma, [eps_inf, sig_TO, sig_LO, gamma_ph, sig_p * drude_scale, gamma_e]
@@ -95,7 +95,7 @@ def calculate_reflectance_hybrid(
     d_cm = d_um * 1e-4
 
     N_low = get_si_refractive_index_LD(sigma, params_low)
-    N_high = get_sic_refractive_index_high(sigma, params_low, drude_scale_high)
+    N_high = get_si_refractive_index_high(sigma, params_low, drude_scale_high)
     w_low = cosine_blend_weights(sigma, split, tw)
     N1 = w_low * N_low + (1 - w_low) * N_high
     N2 = get_sic_substrate_n(sigma)

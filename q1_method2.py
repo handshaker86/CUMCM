@@ -192,7 +192,7 @@ if __name__ == "__main__":
         plt.plot(
             wavenumbers1,
             R_fit1,
-            label=f"Final Model Fit (d={final_d_10deg:.2f} μm)",
+            label=f"Final Model Fit (d={final_d_10deg:.3f} μm)",
             color="red",
             linewidth=2,
         )
@@ -212,7 +212,7 @@ if __name__ == "__main__":
         plt.plot(
             wavenumbers2,
             R_fit2,
-            label=f"Final Model Fit (d={final_d_15deg:.2f} μm)",
+            label=f"Final Model Fit (d={final_d_15deg:.3f} μm)",
             color="green",
             linewidth=2,
         )

@@ -20,7 +20,7 @@ MAX_WAVENUMBER = 4000
 # polyorder: 多项式阶数，必须小于窗口大小。阶数越高，对原始形状的保留越好。
 SG_WINDOW = 11  # 推荐从 5, 7, 9, 11... 尝试
 SG_ORDER = 2  # 对于大多数光谱，2或3是很好的选择
-NORMALIZATION_RANGE = (800, 1000)
+NORMALIZATION_RANGE = (500, 1000)
 
 
 # --- 2. 数据加载与预处理函数 ---

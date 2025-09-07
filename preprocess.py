@@ -13,7 +13,7 @@ FILE_PATH = "附件1.xlsx"
 # 仪器在两端的信号通常最差，通过设定范围可以有效去除低信噪比区域。
 # 这是一个典型的中红外光谱仪的可靠范围，请根据您的仪器进行调整。
 MIN_WAVENUMBER = 600
-MAX_WAVENUMBER = 3900
+MAX_WAVENUMBER = 4000
 
 # 步骤二：设定Savitzky-Golay (SG)滤波器参数
 # window_length: 窗口大小，必须是奇数。值越大，平滑效果越强，但可能丢失细节。

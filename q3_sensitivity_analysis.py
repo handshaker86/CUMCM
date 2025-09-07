@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from numpy.linalg import inv
 from scipy.ndimage import uniform_filter1d
-from q3 import calculate_reflectance_hybrid, fit_thickness_high, fit_lowfreq_params, refine_highfreq_thickness, fit_full_hybrid
+from q3_method import calculate_reflectance_hybrid, fit_thickness_high, fit_lowfreq_params, refine_highfreq_thickness, fit_full_hybrid
 from q2_method2 import preprocess_data
 
 def model_reflectance_percent(sigma, theta_deg, d_um, params_low,

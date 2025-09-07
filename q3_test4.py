@@ -5,12 +5,6 @@ import matplotlib.pyplot as plt
 from preprocess import preprocess_data
 from scipy.ndimage import uniform_filter1d
 
-
-# -----------------------------
-# 1) SiC 薄膜折射率模型
-# -----------------------------
-
-
 # (这是一个辅助函数，仅用于 substrate_refractive_index)
 def get_silicon_refractive_index_sellmeier(wavenumbers_cm):
     """使用文献公认的Sellmeier方程计算高纯度硅(Si)的本征折射率。"""
@@ -24,7 +18,7 @@ def get_silicon_refractive_index_sellmeier(wavenumbers_cm):
     return np.sqrt(n_sq)
 
 
-def get_sic_refractive_index_LD(wavenumbers_cm, params):
+def get_si_refractive_index_LD(wavenumbers_cm, params):
     eps_inf, sig_TO, sig_LO, gamma_phonon, sig_p, gamma_e = params
     sigma = np.asarray(wavenumbers_cm, dtype=float)
     i = 1j
@@ -41,7 +35,7 @@ def get_sic_refractive_index_LD(wavenumbers_cm, params):
 
 def get_sic_refractive_index_high(sigma, params_low, drude_scale=0.0):
     eps_inf, sig_TO, sig_LO, gamma_ph, sig_p, gamma_e = params_low
-    return get_sic_refractive_index_LD(
+    return get_si_refractive_index_LD(
         sigma, [eps_inf, sig_TO, sig_LO, gamma_ph, sig_p * drude_scale, gamma_e]
     )
 
@@ -100,7 +94,7 @@ def calculate_reflectance_hybrid(
     theta_rad = np.deg2rad(theta_deg)
     d_cm = d_um * 1e-4
 
-    N_low = get_sic_refractive_index_LD(sigma, params_low)
+    N_low = get_si_refractive_index_LD(sigma, params_low)
     N_high = get_sic_refractive_index_high(sigma, params_low, drude_scale_high)
     w_low = cosine_blend_weights(sigma, split, tw)
     N1 = w_low * N_low + (1 - w_low) * N_high
@@ -268,9 +262,9 @@ if __name__ == "__main__":
 
     # 可视化拟合
     # 绘制反射率拟合曲线，并在 label 中显示厚度 d
-    for wn, R_exp, angle, label, color in [
-        (wn1, R1, 10, "10°", "red"),
-        (wn2, R2, 15, "15°", "green"),
+    for wn, R_exp, angle, label, color, d in [
+        (wn1, R1, 10, "10°", "red", d10_final),
+        (wn2, R2, 15, "15°", "green", d15_final),
     ]:
         R_fit = (
             calculate_reflectance_hybrid(
@@ -283,7 +277,7 @@ if __name__ == "__main__":
         plt.plot(
             wn,
             R_fit,
-            label=f"Fit ({label}, d={final_d:.3f} μm)",
+            label=f"Fit ({label}, d={d:.3f} μm)",
             color=color,
             linewidth=2,
         )
@@ -296,7 +290,7 @@ if __name__ == "__main__":
 
     # 绘制 n/k 光学常数，并在 label 中显示厚度 d
     sigma_plot = np.linspace(400, 4000, 1000)
-    N_complex = get_sic_refractive_index_LD(sigma_plot, final_params_low)
+    N_complex = get_si_refractive_index_LD(sigma_plot, final_params_low)
     n_fit = N_complex.real
     k_fit = N_complex.imag
 

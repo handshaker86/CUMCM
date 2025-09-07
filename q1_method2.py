@@ -130,8 +130,8 @@ def fit_thickness(exp_wavenumbers, exp_reflectance, angle_deg, fixed_material_pa
 
 # --- 3. 主程序 ---
 if __name__ == "__main__":
-    file1 = "附件3.xlsx"
-    file2 = "附件4.xlsx"
+    file1 = "附件1.xlsx"
+    file2 = "附件2.xlsx"
 
     # --- 数据加载 ---
     df1 = pd.read_excel(file1)
